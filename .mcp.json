@@ -1,12 +1,8 @@
 {
   "mcpServers": {
     "perplexity": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@perplexity-ai/mcp-server@1.2.1"],
-      "env": {
-        "PERPLEXITY_API_KEY": "${PERPLEXITY_API_KEY}"
-      }
+      "type": "http",
+      "url": "https://api.perplexity.ai/mcp"
     },
     "playwright": {
       "type": "stdio",

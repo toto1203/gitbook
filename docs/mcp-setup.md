@@ -7,37 +7,63 @@ relancée pour les voir.
 
 ## 1. Perplexity
 
-Paquet officiel : `@perplexity-ai/mcp-server` (version épinglée 1.2.1).
+Serveur distant officiel : `https://api.perplexity.ai/mcp` (transport
+Streamable HTTP). Il est déclaré sans identifiant dans `.mcp.json`, donc la
+connexion se fait par « Sign in with Perplexity » (OAuth 2.1 avec PKCE et
+enregistrement dynamique du client).
+
 Outils exposés : `perplexity_search`, `perplexity_ask`, `perplexity_research`,
 `perplexity_reason`.
 
-### Clé d'API (obligatoire)
+### Connexion à votre compte (OAuth, pas de clé à stocker)
 
-Le serveur lit la variable d'environnement `PERPLEXITY_API_KEY`. La clé ne doit
-jamais être écrite dans `.mcp.json` ni commitée.
+Dans une session Claude Code ouverte sur ce dépôt, lancer `/mcp`, choisir
+`perplexity`, puis s'authentifier. Le navigateur s'ouvre sur Perplexity, vous
+vous connectez avec votre compte habituel et vous choisissez l'organisation API
+à facturer. Le jeton est géré par le client, rien n'est écrit dans le dépôt.
 
-- En local : `export PERPLEXITY_API_KEY=pplx-...` dans votre shell ou votre
-  fichier de profil, avant de lancer `claude`.
-- Sur Claude Code web : ajouter la variable dans les paramètres de
-  l'environnement (section variables d'environnement), pas dans le dépôt.
+Point important : l'OAuth authentifie votre compte, mais la consommation reste
+facturée à une organisation API Perplexity. Un abonnement Pro seul ne suffit
+pas, il faut des crédits API sur l'organisation choisie. La connexion peut
+appeler l'API pour cette organisation ; elle ne peut ni créer de clés, ni voir
+les soldes, ni administrer l'organisation.
 
-La clé se crée sur https://www.perplexity.ai/account/api/group (un crédit API
-payant est requis ; l'abonnement Pro seul ne suffit pas).
+### Variante par clé d'API
 
-### Accès réseau
+Si vous préférez une clé plutôt que l'OAuth, deux options :
 
-L'environnement d'exécution distant filtre les sorties HTTPS. Au moment de
-l'installation, `api.perplexity.ai` était refusé par la politique réseau
-(CONNECT 403). Tant que ce domaine n'est pas autorisé, le serveur démarre mais
-tout appel d'outil échoue.
+- même serveur distant, avec un en-tête :
+  `claude mcp add --transport http perplexity https://api.perplexity.ai/mcp --header "Authorization: Bearer $PERPLEXITY_API_KEY"`
+- serveur local en stdio : `npx -y @perplexity-ai/mcp-server@1.2.1` avec la
+  variable d'environnement `PERPLEXITY_API_KEY`.
 
-Domaines à autoriser dans la politique réseau de l'environnement :
+Dans les deux cas, la clé ne doit jamais être commitée ; elle se place dans
+l'environnement (variables d'environnement de l'environnement Claude Code web,
+ou profil shell en local).
 
-- `api.perplexity.ai` (indispensable)
-- `mcp.perplexity.ai` (seulement si vous passez au serveur MCP hébergé de
-  Perplexity au lieu du paquet npm)
+### Accès réseau : blocage constaté
 
-Documentation de référence : https://code.claude.com/docs/en/claude-code-on-the-web
+L'environnement d'exécution distant filtre les sorties HTTPS. Au 19/09/2026,
+tout le domaine Perplexity est refusé par la politique réseau (CONNECT 403) :
+`api.perplexity.ai`, `www.perplexity.ai`, `docs.perplexity.ai`. Conséquence :
+le serveur MCP se charge, mais tout appel d'outil échoue avec
+`Network error while calling Perplexity API: TypeError: fetch failed`.
+
+Deux façons de débloquer :
+
+1. Autoriser `api.perplexity.ai` dans la politique réseau de l'environnement
+   (paramètres de l'environnement Claude Code web). Nécessaire pour la config
+   de ce dépôt, que ce soit en OAuth ou par clé.
+2. Ajouter Perplexity comme connecteur personnalisé sur claude.ai
+   (Paramètres, Connecteurs, Ajouter un connecteur personnalisé, URL
+   `https://api.perplexity.ai/mcp`, puis authentification OAuth). Les
+   connecteurs claude.ai sont appelés depuis l'infrastructure Anthropic et non
+   depuis le conteneur, donc ils ne subissent pas ce filtrage ; c'est ainsi que
+   Firecrawl atteint des domaines bloqués pour le conteneur. Cette voie ne
+   dépend pas de `.mcp.json`.
+
+Références : https://docs.perplexity.ai/docs/getting-started/integrations/mcp-server
+et https://support.anthropic.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp
 
 ## 2. Playwright
 
@@ -83,9 +109,20 @@ npx -y @playwright/mcp@0.0.81 --headless --isolated --no-sandbox \
   --executable-path /opt/pw-browsers/chromium --help
 ```
 
-## Ce qui a été testé le 15/09/2026
+## Journal des vérifications
 
-- Perplexity : démarrage du serveur et `tools/list` sur les 4 outils, OK.
-  Appel réel non testé : pas de clé d'API et domaine bloqué par le proxy.
+15/09/2026 :
+
+- Perplexity (paquet stdio) : démarrage du serveur et `tools/list` sur les
+  4 outils, OK. Appel réel non testé.
 - Playwright : `browser_navigate` exécuté avec succès via le serveur MCP avec
   le chemin Chromium explicite.
+
+19/09/2026 :
+
+- Les outils `perplexity_*` sont bien chargés dans la session, mais
+  `perplexity_search` renvoie `fetch failed` : aucune clé dans l'environnement
+  et `api.perplexity.ai` refusé par le proxy (CONNECT 403).
+- Bascule de `.mcp.json` vers le serveur distant officiel
+  `https://api.perplexity.ai/mcp` en OAuth, pour se connecter au compte
+  Perplexity sans stocker de clé.

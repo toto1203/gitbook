@@ -89,12 +89,30 @@ donc :
 - poste local : définir `PLAYWRIGHT_CHROMIUM_PATH` vers votre binaire, par
   exemple le résultat de `node -e "console.log(require('playwright').chromium.executablePath())"`.
 
-### Si vous écrivez aussi des scripts Playwright dans ce dépôt
+### Projet de tests Playwright dans ce dépôt
 
-Épinglez `playwright@1.56.0` : c'est la version dont le build Chromium (1194)
-correspond à celui préinstallé dans l'environnement distant. Une version plus
-récente déclenchera `npx playwright install`, qui est bloqué. Sinon, passez
-`executablePath: '/opt/pw-browsers/chromium'` au lancement.
+Le dépôt contient un projet `@playwright/test` généré par
+`npm init playwright@latest` : `package.json`, `playwright.config.ts`,
+`tests/example.spec.ts`, `.gitignore`.
+
+L'étape de téléchargement des navigateurs échoue dans l'environnement distant :
+`cdn.playwright.dev`, `playwright.download.prss.microsoft.com` et
+`playwright.dev` sont refusés par le proxy. `@playwright/test` 1.63 réclame le
+build Chromium 1243, seul le 1194 est présent.
+
+`playwright.config.ts` contourne cela en pointant le projet `chromium` sur le
+binaire existant :
+
+- `PLAYWRIGHT_CHROMIUM_PATH` si la variable est définie ;
+- sinon `/opt/pw-browsers/chromium` s'il existe ;
+- sinon comportement Playwright par défaut, donc rien à changer en local.
+
+Commandes : `npm test` (équivaut à `playwright test`) et `npm run test:ui`.
+
+Les deux tests générés d'origine dans `tests/example.spec.ts` visent
+`https://playwright.dev/` et échouent ici en `ERR_TUNNEL_CONNECTION_FAILED`,
+faute d'accès réseau sortant vers ce domaine. Ce n'est pas un défaut
+d'installation.
 
 ## Vérification
 
@@ -120,6 +138,11 @@ npx -y @playwright/mcp@0.0.81 --headless --isolated --no-sandbox \
 
 19/09/2026 :
 
+- `npm init playwright@latest` : scaffolding créé, installation des navigateurs
+  en échec (domaines de téléchargement bloqués).
+- Après pointage explicite sur `/opt/pw-browsers/chromium`, un test local sans
+  réseau passe en 11,9 s sur le projet `chromium`.
+- Les tests d'exemple vers `playwright.dev` échouent : domaine bloqué.
 - Les outils `perplexity_*` sont bien chargés dans la session, mais
   `perplexity_search` renvoie `fetch failed` : aucune clé dans l'environnement
   et `api.perplexity.ai` refusé par le proxy (CONNECT 403).

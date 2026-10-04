@@ -1,0 +1,15 @@
+{
+  "name": "veille-agences",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Repérage des agences immobilières ayant plus de 10 annonces de location sur une même plateforme (Leboncoin, SeLoger, Bien'ici) via camofox-browser.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.js --config config.json",
+    "test": "node --test"
+  },
+  "license": "UNLICENSED"
+}

@@ -1,0 +1,50 @@
+# Serveur camofox-browser (https://github.com/jo-inc/camofox-browser) pour la veille agences.
+#
+# Lancement : docker compose up -d     puis     curl http://localhost:9377/health
+#
+# Image : le dépôt camofox publie une image multi-architecture (amd64/arm64) sur GHCR via son
+# workflow .github/workflows/docker.yml (construite avec Dockerfile.ci). Si l'image n'est pas
+# disponible ou pour figer une version, commenter "image:" et décommenter le bloc "build:"
+# qui construit directement depuis le dépôt Git (Dockerfile.ci télécharge Camoufox, ~300 Mo).
+
+services:
+  camofox:
+    image: ghcr.io/jo-inc/camofox-browser:latest
+    # build:
+    #   context: https://github.com/jo-inc/camofox-browser.git
+    #   dockerfile: Dockerfile.ci
+    container_name: camofox-veille
+    restart: unless-stopped
+    # Firefox a besoin de mémoire partagée (valeur reprise du Makefile camofox).
+    shm_size: "2gb"
+    ports:
+      # Exposé uniquement en local : l'API permet d'exécuter du JS arbitraire dans le navigateur.
+      - "127.0.0.1:9377:9377"
+    environment:
+      CAMOFOX_PORT: "9377"
+      # Désactive la télémétrie de plantage (envoi anonymisé vers un endpoint de l'éditeur).
+      CAMOFOX_CRASH_REPORT_ENABLED: "false"
+      # Identité navigateur française cohérente (les deux variables doivent être définies ensemble).
+      # A retirer si un proxy est configuré : Camoufox déduit alors locale/fuseau de l'IP du proxy.
+      CAMOFOX_LOCALE: "fr-FR"
+      CAMOFOX_TIMEZONE: "Europe/Paris"
+      # Garder le navigateur ouvert entre deux pages (délais de politesse de plusieurs secondes).
+      SESSION_TIMEOUT_MS: "1800000"
+      TAB_INACTIVITY_MS: "900000"
+      # Proxy résidentiel, uniquement en cas de blocage (noms de variables documentés par camofox) :
+      # PROXY_HOST: ""
+      # PROXY_PORT: ""
+      # PROXY_USERNAME: ""
+      # PROXY_PASSWORD: ""
+      # PROXY_PROTOCOL: "http"
+      # ou en mode "backconnect" (IP tournantes, sessions collantes) :
+      # PROXY_STRATEGY: "backconnect"
+      # PROXY_BACKCONNECT_HOST: ""
+      # PROXY_BACKCONNECT_PORT: "7000"
+      # PROXY_COUNTRY: "fr"
+    volumes:
+      # Cookies / localStorage persistés entre redémarrages (le conteneur tourne en root).
+      - camofox-data:/root/.camofox
+
+volumes:
+  camofox-data:

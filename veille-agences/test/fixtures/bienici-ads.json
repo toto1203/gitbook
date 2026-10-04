@@ -1,0 +1,28 @@
+{
+  "total": 3,
+  "perPage": 24,
+  "realEstateAds": [
+    {
+      "id": "ag690123-412345678",
+      "adType": "rent",
+      "adCreatedByPro": true,
+      "accountType": "agency",
+      "accountDisplayName": "Century Lyon Part-Dieu",
+      "city": "Lyon",
+      "postalCode": "69003"
+    },
+    {
+      "id": "hektor-xyz-555",
+      "adType": "rent",
+      "adCreatedByPro": true,
+      "userRelativeData": { "accountIds": ["acc-42"] },
+      "contactRelativeData": { "contactNameToDisplay": "Foncia Lyon" }
+    },
+    {
+      "id": "particulier-1",
+      "adType": "rent",
+      "adCreatedByPro": false,
+      "accountType": "particulier"
+    }
+  ]
+}

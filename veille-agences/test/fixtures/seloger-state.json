@@ -1,0 +1,25 @@
+{
+  "app_cldp": {
+    "data": {
+      "classifieds": [
+        {
+          "id": "243700001",
+          "classifiedURL": "/annonces/locations/appartement/lyon-3eme-69/243700001.htm",
+          "contact": { "agencyId": "AG-77", "agencyName": "Immo Rhône", "agencyLink": "/professionnels/agences-immobilieres/immo-rhone-77.htm" }
+        },
+        {
+          "id": "243700002",
+          "classifiedURL": "https://www.seloger.com/annonces/locations/maison/lyon-8eme-69/243700002.htm",
+          "contact": { "agencyId": "AG-77", "agencyName": "Immo Rhône" }
+        },
+        {
+          "id": "243700003",
+          "classifiedURL": "/annonces/achat/appartement/lyon-1er-69/243700003.htm",
+          "contact": { "agencyId": "AG-99", "agencyName": "Vente seulement" }
+        }
+      ]
+    },
+    "seo": { "url": "https://www.seloger.com/classified-search", "id": "pas-une-annonce" }
+  },
+  "duplicate": { "id": "243700002", "url": "/annonces/locations/maison/lyon-8eme-69/243700002.htm" }
+}

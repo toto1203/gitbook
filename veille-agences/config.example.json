@@ -1,0 +1,36 @@
+{
+  "camofoxUrl": "http://localhost:9377",
+  "userId": "greenloc-veille",
+  "platforms": {
+    "leboncoin": true,
+    "seloger": true,
+    "bienici": true
+  },
+  "zones": [
+    {
+      "label": "Lyon",
+      "ville": "Lyon",
+      "codePostal": "69000",
+      "leboncoin": { "locations": "Lyon_69000" },
+      "seloger": { "searchUrl": "https://www.seloger.com/classified-search?distributionTypes=Rent&estateTypes=House,Apartment&locations=A_COMPLETER" },
+      "bienici": { "zoneIds": [] }
+    },
+    {
+      "label": "Villeurbanne",
+      "ville": "Villeurbanne",
+      "codePostal": "69100"
+    }
+  ],
+  "filters": {
+    "typeBien": ["appartement", "maison"],
+    "prixMax": null,
+    "surfaceMin": null
+  },
+  "seuilAnnonces": 10,
+  "maxPages": 20,
+  "delays": {
+    "minMs": 4000,
+    "maxMs": 9000
+  },
+  "outputDir": "output"
+}

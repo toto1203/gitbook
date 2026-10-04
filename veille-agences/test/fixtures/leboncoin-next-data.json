@@ -1,0 +1,38 @@
+{
+  "props": {
+    "pageProps": {
+      "searchData": {
+        "total": 4,
+        "max_pages": 1,
+        "ads": [
+          {
+            "list_id": 2800000001,
+            "category_id": "10",
+            "subject": "Appartement T2 Lyon 3e",
+            "url": "https://www.leboncoin.fr/ad/locations/2800000001",
+            "owner": { "store_id": "12345", "user_id": "u-1", "type": "pro", "name": "Agence du Parc", "siren": "123456789" }
+          },
+          {
+            "list_id": 2800000002,
+            "category_id": "10",
+            "subject": "Maison 4 pièces",
+            "url": "https://www.leboncoin.fr/ad/locations/2800000002",
+            "owner": { "store_id": "12345", "user_id": "u-1", "type": "pro", "name": "Agence du Parc" }
+          },
+          {
+            "list_id": 2800000003,
+            "category_id": "10",
+            "subject": "Studio meublé",
+            "owner": { "user_id": "u-2", "type": "private", "name": "Jean" }
+          },
+          {
+            "list_id": 2800000004,
+            "category_id": "9",
+            "subject": "Vente appartement (hors catégorie)",
+            "owner": { "store_id": "999", "type": "pro", "name": "Autre Agence" }
+          }
+        ]
+      }
+    }
+  }
+}

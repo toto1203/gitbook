@@ -1,0 +1,8 @@
+
+PART 6. AD FOCUS (paid Meta ad)
+- Hook: what in the first 3 seconds is meant to stop the scroll (visual, text, sound, question, claim)?
+- Retention devices after the hook (pattern interrupts, open loops, captions, faces, b-roll, music changes), with timestamps.
+- Offer: what exactly is promised or sold, prices, conditions, guarantees, with timestamps.
+- Call to action: exact wording, timestamp, and whether it is spoken, written or both.
+- Captions/subtitles: present or not, burned-in or not, legible on a phone, sound-off comprehension.
+- Brand presence: when the brand name or logo first appears and how often.

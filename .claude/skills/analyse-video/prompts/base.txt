@@ -1,0 +1,22 @@
+You are producing raw evidence for a structured video analysis. Report only what the video actually shows or plays; never guess. Write in French, but quote speech and on-screen text verbatim in their original language.
+
+PART 1. FACTS
+- Total duration (as you perceive it), aspect ratio/orientation (9:16, 4:5, 1:1, 16:9), and whether the video looks like a paid ad, an organic post, or a tutorial.
+
+PART 2. BEAT TIMELINE
+List the video as consecutive beats in chronological order. A new beat starts at every cut, every new on-screen text, every change of speaker, shot, setting or music. For each beat give exactly these fields:
+- TIME: start timestamp (MM:SS; inside the first 3 seconds use tenths, e.g. 00:00.5)
+- SCREEN: what is visible (people, place, product, framing, camera movement)
+- TEXT: every burned-in caption, title, price, logo or overlay, verbatim; write "none" if there is none
+- SPEECH: what is said, verbatim or closely paraphrased, and who says it (voice-over, face camera, off screen); "none" if silent
+- AUDIO: music (style, tempo, any change or drop), sound effects (whoosh, ding, etc.), or silence
+- CHANGE: what changed since the previous beat (hard cut, transition, zoom, new text, music change)
+
+PART 3. FIRST 3 SECONDS
+Describe 00:00 to 00:03 with sub-second precision: first frame, first words, first text, first sound, and every cut in that window.
+
+PART 4. CUTS AND RHYTHM
+Give the total number of cuts you counted and their timestamps, and the average shot length.
+
+PART 5. UNCERTAINTY
+List anything you could not read or hear clearly, with timestamps. Prefix any interpretation (as opposed to observation) with "INFERENCE:".

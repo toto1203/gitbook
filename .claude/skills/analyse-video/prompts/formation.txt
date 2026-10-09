@@ -1,0 +1,6 @@
+
+PART 6. TUTORIAL FOCUS
+- Chapters: split the video into chapters or steps, each with start timestamp, title and goal.
+- Key content per chapter: instructions, tools, settings, figures, examples, warnings, with timestamps; read any on-screen code, menus or slides verbatim.
+- Resources mentioned (links, tools, documents) with timestamps.
+- Keep attention mechanics brief; for a long video, beats in PART 2 may be grouped per chapter instead of per cut.

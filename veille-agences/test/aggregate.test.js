@@ -101,3 +101,16 @@ test('configuration : valeurs par défaut et validation', () => {
   assert.throws(() => normalizeConfig({ zones: [{ label: 'L', ville: 'L' }], platforms: { pap: true } }), /pap/);
   assert.throws(() => normalizeConfig({ zones: [{ label: 'L', ville: 'L' }], delays: { minMs: 100, maxMs: 200 } }), /minMs/);
 });
+
+test('configuration : options navigateur', () => {
+  const zones = [{ label: 'L', ville: 'L' }];
+  const cfg = normalizeConfig({ zones, browser: { headless: false } });
+  assert.equal(cfg.browser.headless, false);
+  assert.equal(cfg.browser.humanize, true);
+  assert.equal(cfg.browser.locale, 'fr-FR');
+  assert.equal(cfg.browser.proxy, null);
+  assert.ok(normalizeConfig({ zones, browser: { proxy: { server: 'http://p.example:8000', username: 'u', password: 'p' } } }));
+  assert.throws(() => normalizeConfig({ zones, browser: { proxy: { server: 'p.example' } } }), /proxy/);
+  assert.throws(() => normalizeConfig({ zones, browser: { headless: 'oui' } }), /headless/);
+  assert.throws(() => normalizeConfig({ zones, camofoxUrl: 'http://localhost:9377' }), /camofoxUrl/);
+});

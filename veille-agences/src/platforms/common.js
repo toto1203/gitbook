@@ -22,10 +22,10 @@ export const IN_PAGE_BLOCK_DETECTION = `
  * Scénario standard : navigation vers l'URL de recherche, attente du chargement,
  * puis évaluation du script d'extraction dans la page.
  */
-export async function navigateAndEvaluate({ camofox, tabId, url, script }) {
-  const nav = await camofox.navigate(tabId, url);
-  await camofox.wait(tabId, { timeout: 15_000, waitForNetwork: true, dismissConsent: true });
-  const result = await camofox.evaluate(tabId, script);
+export async function navigateAndEvaluate({ tab, url, script }) {
+  const nav = await tab.navigate(url);
+  await tab.wait({ timeout: 15_000, waitForNetwork: true, dismissConsent: true });
+  const result = await tab.evaluate(script);
   return { nav, result };
 }
 

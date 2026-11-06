@@ -135,9 +135,9 @@ export function parsePageResult(result) {
   return { listings: parseDomItems(result.dom), total: null, blocked: !!result.blocked, source: 'dom' };
 }
 
-export async function fetchPage({ camofox, tabId, zone, page, filters }) {
+export async function fetchPage({ tab, zone, page, filters }) {
   const url = buildSearchUrl(zone, page, filters);
-  const { nav, result } = await navigateAndEvaluate({ camofox, tabId, url, script: inPageScript });
+  const { nav, result } = await navigateAndEvaluate({ tab, url, script: inPageScript });
   const parsed = parsePageResult(result);
   if (nav?.httpStatus === 403) parsed.blocked = true;
   return { url, ...parsed };

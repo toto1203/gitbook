@@ -9,7 +9,7 @@
 // Les identifiants de zone (zoneIds) se résolvent via
 //   GET https://res.bienici.com/suggest.json?q=<ville ou code postal>
 //   réponse = [ { name, postalCodes: [...], zoneIds: [...], type } ]
-// Ces deux appels sont faits DEPUIS la page (fetch dans l'onglet camofox, après une visite de la
+// Ces deux appels sont faits DEPUIS la page (fetch dans l'onglet Camoufox, après une visite de la
 // page d'accueil) pour bénéficier des cookies et de l'empreinte du navigateur anti-détection.
 // Les noms de champs "agence" de la réponse ne sont pas documentés : plusieurs candidats sont
 // testés (voir adToListing) et doivent être confirmés sur une réponse réelle.
@@ -129,14 +129,14 @@ export function parseAdsResponse(json) {
 }
 
 /** Visite la page d'accueil une fois par onglet pour obtenir cookies et contexte d'origine. */
-export async function prepare({ camofox, tabId }) {
-  await camofox.navigate(tabId, `${BASE}/`);
-  await camofox.wait(tabId, { timeout: 15_000, waitForNetwork: true, dismissConsent: true });
+export async function prepare({ tab }) {
+  await tab.navigate(`${BASE}/`);
+  await tab.wait({ timeout: 15_000, waitForNetwork: true, dismissConsent: true });
 }
 
-export async function resolveZoneIds({ camofox, tabId, zone }) {
+export async function resolveZoneIds({ tab, zone }) {
   if (Array.isArray(zone?.bienici?.zoneIds) && zone.bienici.zoneIds.length) return zone.bienici.zoneIds;
-  const res = await camofox.evaluate(tabId, fetchJsonScript(suggestUrl(zone)));
+  const res = await tab.evaluate(fetchJsonScript(suggestUrl(zone)));
   if (!res?.text) return [];
   try {
     return pickZoneIds(JSON.parse(res.text), zone);
@@ -145,9 +145,9 @@ export async function resolveZoneIds({ camofox, tabId, zone }) {
   }
 }
 
-export async function fetchPage({ camofox, tabId, zone, page, filters }) {
+export async function fetchPage({ tab, zone, page, filters }) {
   const url = buildSearchUrl(zone, page, filters);
-  const res = await camofox.evaluate(tabId, fetchJsonScript(url));
+  const res = await tab.evaluate(fetchJsonScript(url));
   if (res?.blocked || res?.status === 403) return { url, listings: [], total: null, blocked: true, source: 'json' };
   if (!res?.text) throw new Error(`bienici : réponse vide (HTTP ${res?.status ?? '?'}) ${res?.error || ''}`.trim());
   let parsed;

@@ -1,6 +1,9 @@
 {
-  "camofoxUrl": "http://localhost:9377",
-  "userId": "greenloc-veille",
+  "browser": {
+    "headless": true,
+    "humanize": true,
+    "proxy": null
+  },
   "platforms": {
     "leboncoin": true,
     "seloger": true,

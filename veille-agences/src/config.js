@@ -4,8 +4,14 @@ import { readFile } from 'node:fs/promises';
 import { PLATFORMS } from './platforms/index.js';
 
 export const DEFAULTS = {
-  camofoxUrl: 'http://localhost:9377',
-  userId: 'greenloc-veille',
+  // Options du navigateur Camoufox (voir src/browser.js).
+  browser: {
+    headless: true, // true, false (fenêtre visible) ou "virtual" (écran virtuel Xvfb, Linux)
+    humanize: true, // mouvements de souris humanisés
+    proxy: null, // { "server": "http://hote:port", "username": "...", "password": "..." }
+    locale: 'fr-FR', // identité utilisée sans proxy
+    timezoneId: 'Europe/Paris',
+  },
   platforms: { leboncoin: true, seloger: true, bienici: true },
   zones: [],
   filters: { typeBien: [], prixMax: null, surfaceMin: null },
@@ -22,8 +28,20 @@ export function normalizeConfig(raw = {}) {
     platforms: { ...DEFAULTS.platforms, ...(raw.platforms || {}) },
     filters: { ...DEFAULTS.filters, ...(raw.filters || {}) },
     delays: { ...DEFAULTS.delays, ...(raw.delays || {}) },
+    browser: { ...DEFAULTS.browser, ...(raw.browser || {}) },
   };
   const errors = [];
+  if (raw.camofoxUrl || raw.userId || raw.accessKey) {
+    errors.push('"camofoxUrl", "userId" et "accessKey" ne sont plus utilisés (camofox-browser remplacé par Camoufox en direct) : les retirer et utiliser "browser"');
+  }
+  const b = cfg.browser;
+  if (![true, false, 'virtual'].includes(b.headless)) errors.push('"browser.headless" doit valoir true, false ou "virtual"');
+  if (b.proxy !== null && b.proxy !== undefined) {
+    const server = typeof b.proxy === 'string' ? b.proxy : b.proxy?.server;
+    if (!server || !/^(https?|socks5?):\/\/[^/\s]+/i.test(String(server))) {
+      errors.push('"browser.proxy.server" doit être une URL du type http://hote:port ou socks5://hote:port');
+    }
+  }
   if (!Array.isArray(cfg.zones) || cfg.zones.length === 0) errors.push('"zones" doit contenir au moins une zone');
   cfg.zones.forEach((z, i) => {
     if (!z || typeof z !== 'object') errors.push(`zones[${i}] invalide`);

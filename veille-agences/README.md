@@ -2,14 +2,14 @@
 
 Outil interne Greenloc. Il repère les **agences immobilières** qui ont **strictement plus de 10 annonces de location** en ligne **sur une même plateforme** (Leboncoin, SeLoger, Bien'ici), pour une liste de zones géographiques.
 
-Le navigateur utilisé est [camofox-browser](https://github.com/jo-inc/camofox-browser) (licence MIT) : un serveur REST (port 9377) qui pilote Camoufox, un Firefox modifié pour résister à la détection des robots.
+Le navigateur utilisé est [Camoufox](https://github.com/daijro/camoufox) (licence MPL-2.0), un Firefox modifié pour résister à la détection des robots. Il est piloté directement depuis Node.js avec [camoufox-js](https://www.npmjs.com/package/camoufox-js) et `playwright-core` : aucun serveur intermédiaire, aucun Docker.
 
 ## Sommaire
 
 1. [Objectif](#objectif)
 2. [Prérequis](#prérequis)
 3. [Installation](#installation)
-4. [Lancer camofox](#lancer-camofox)
+4. [État du projet Camoufox](#état-du-projet-camoufox)
 5. [Configuration](#configuration)
 6. [Exécution](#exécution)
 7. [Format de sortie](#format-de-sortie)
@@ -27,46 +27,44 @@ Pour chaque plateforme et chaque zone configurée, le script parcourt les pages 
 
 ## Prérequis
 
-- **Node.js 22 ou plus** (aucune dépendance npm : uniquement `fetch`, `node:test`, etc.).
-- **Docker** (avec Docker Compose) pour faire tourner camofox.
-- Environ 1 Go de disque pour l'image camofox (Camoufox pèse environ 300 Mo) et 1 à 2 Go de RAM libre.
+- **Node.js 22 ou plus** (Linux, macOS ou Windows).
+- Dépendances npm : `camoufox-js` (lanceur Camoufox, port JavaScript du lanceur Python officiel, maintenu par Apify) et `playwright-core` (pilotage du navigateur).
+- Environ 1 Go de disque pour le navigateur Camoufox et ses données (cache utilisateur) et 1 à 2 Go de RAM libre.
+- Sous Linux sans affichage, rien de plus pour le mode `headless: true`. Le mode `"virtual"` (écran virtuel, parfois moins détecté) demande `Xvfb` (`apt install xvfb`).
 
-### Où l'héberger ? Recommandation : Docker sur un poste local
+### Où l'exécuter ? Recommandation : un poste local
 
-- **Le plus simple** : un `docker compose up -d` et c'est prêt.
+- **Le plus simple** : `npm install`, `npm run fetch-browser`, et c'est prêt.
 - **Gratuit** : aucun serveur à louer.
 - **Adresse IP résidentielle** : Leboncoin et SeLoger sont protégés par DataDome, qui bloque très vite les IP de centres de données (AWS, OVH, Scaleway, etc.). Depuis une connexion de bureau ou domestique, le blocage est beaucoup plus rare.
 
-Si le blocage persiste malgré tout, il faudra un **proxy résidentiel** (payant : Decodo, Bright Data, Oxylabs...). camofox le prend en charge par variables d'environnement (`PROXY_HOST`, `PROXY_PORT`, `PROXY_USERNAME`, `PROXY_PASSWORD`, `PROXY_PROTOCOL`, ou `PROXY_STRATEGY=backconnect` avec `PROXY_BACKCONNECT_HOST` / `PROXY_BACKCONNECT_PORT`, et `PROXY_COUNTRY`). Elles sont prêtes, commentées, dans `docker-compose.yml`. Dans ce cas, retirer `CAMOFOX_LOCALE` / `CAMOFOX_TIMEZONE` : Camoufox déduit alors la langue et le fuseau de l'IP du proxy.
+Si le blocage persiste malgré tout, il faudra un **proxy résidentiel** (payant : Decodo, Bright Data, Oxylabs...). Le renseigner dans `browser.proxy` de `config.json` (voir [Configuration](#configuration)). Avec un proxy, Camoufox active sa géolocalisation par IP (`geoip`) : langue, fuseau horaire et position sont alors déduits de l'IP de sortie du proxy, au lieu de l'identité fixe `fr-FR` / `Europe/Paris`. Choisir donc un proxy situé en France.
 
 ## Installation
 
 ```bash
 cd veille-agences
+npm install                          # camoufox-js et playwright-core
+npm run fetch-browser                # télécharge le navigateur Camoufox (une seule fois)
 cp config.example.json config.json   # puis adapter config.json
-node --test                          # tests unitaires (facultatif)
+npm test                             # tests unitaires (facultatif, sans navigateur)
 ```
 
-Aucun `npm install` n'est nécessaire.
+`npm run fetch-browser` exécute `camoufox-js fetch` : il télécharge depuis les publications GitHub de Camoufox **la version du navigateur associée à cette version de camoufox-js** (camoufox-js 0.13.0 : Camoufox 152.0.4-beta.30, la même version que celle testée par camofox-browser), la base GeoIP et les extensions par défaut (dont uBlock Origin). Le tout est rangé dans le cache utilisateur (`~/.cache/camoufox` sous Linux) ; la variable `CAMOUFOX_INSTALL_DIR` permet de choisir un autre dossier (à définir aussi lors des exécutions). `npx camoufox-js path` affiche le dossier utilisé, `npx camoufox-js remove` le supprime. Sur une machine partagée ou un CI, définir `GITHUB_TOKEN` évite la limite de requêtes de l'API GitHub.
 
-## Lancer camofox
+Les versions de `camoufox-js` (0.13.0) et `playwright-core` (1.62.1, celle du verrou de camofox-browser ; camoufox-js exige une version inférieure à 1.63) sont figées dans `package.json`. Chaque version de camoufox-js est associée à une version précise du navigateur : monter camoufox-js change donc le navigateur téléchargé, ce qui est à revalider avant usage.
 
-```bash
-docker compose up -d
-curl http://localhost:9377/health     # doit répondre {"ok":true,"engine":"camoufox",...}
-```
+## État du projet Camoufox
 
-Le fichier `docker-compose.yml` :
+Constat au 6 novembre 2026, à revérifier avant usage :
 
-- utilise l'image publiée par le projet camofox, `ghcr.io/jo-inc/camofox-browser:latest` (amd64 et arm64, donc Mac M1/M2 compris) ;
-- si cette image n'est pas disponible, commenter `image:` et décommenter le bloc `build:` : Docker construit alors l'image directement depuis le dépôt Git avec `Dockerfile.ci` (téléchargement de Camoufox pendant la construction, quelques minutes). Autre solution, documentée par camofox : `git clone https://github.com/jo-inc/camofox-browser && cd camofox-browser && make up` ;
-- **désactive la télémétrie** de plantage de camofox (`CAMOFOX_CRASH_REPORT_ENABLED=false`) : par défaut, camofox envoie des rapports anonymisés à son éditeur ;
-- n'expose le port qu'en local (`127.0.0.1:9377`) : l'API permet d'exécuter du JavaScript arbitraire, elle ne doit pas être ouverte sur le réseau ;
-- fixe une identité navigateur française (`CAMOFOX_LOCALE=fr-FR`, `CAMOFOX_TIMEZONE=Europe/Paris`).
+- Le README du dépôt [daijro/camoufox](https://github.com/daijro/camoufox) affiche toujours l'avertissement : *"This project is under development. It may not be suitable for stable production use."*
+- Le site officiel ([camoufox.com/stealth](https://camoufox.com/stealth/)) indique : *"There has been a year gap in maintenance due to a personal situation. Camoufox has gone down in performance due to the base Firefox version and newly discovered fingerprint inconsistencies"*, puis *"Camoufox is currently under active development."*
+- Le 10 janvier 2026, l'auteur (daijro) a annoncé quitter son rôle de mainteneur principal ; la maintenance est assurée par l'équipe de Clover Labs, le dépôt restant la propriété de daijro ([discussion #452](https://github.com/daijro/camoufox/discussions/452)).
+- Le développement est effectivement actif : de 11 à plus de 170 commits par mois sur le dépôt en 2026 (dernier commit consulté : 3 novembre 2026 ; passage à Firefox 159 le 2 novembre).
+- Le dépôt officiel publie désormais son propre lanceur Node.js, le paquet npm [`camoufox`](https://www.npmjs.com/package/camoufox) (0.5.9 au 1er novembre 2026, `npm install camoufox playwright-core && npx camoufox fetch`). Cet outil utilise `camoufox-js` (Apify, [apify/camoufox-js](https://github.com/apify/camoufox-js), 0.13.0 au 16 octobre 2026), comme camofox-browser ; les deux exposent une fonction `Camoufox()` qui renvoie un navigateur Playwright, et basculer de l'un à l'autre ne toucherait que `src/browser.js` et `package.json`.
 
-Sans Docker (Node 22) : `npx @askjo/camofox-browser` ou, depuis le dépôt, `npm install && npm start` ; exporter alors `CAMOFOX_CRASH_REPORT_ENABLED=false` avant le lancement.
-
-Arrêt : `docker compose down`.
+En pratique : l'efficacité anti-détection n'est pas garantie et peut varier d'une version à l'autre ; prévoir de revalider après chaque mise à jour.
 
 ## Configuration
 
@@ -74,8 +72,11 @@ Fichier `config.json` (modèle : `config.example.json`) :
 
 | Clé | Description | Défaut |
 |-----|-------------|--------|
-| `camofoxUrl` | URL du serveur camofox | `http://localhost:9377` |
-| `userId` | Identifiant de session camofox (contexte navigateur isolé : cookies, stockage) | `greenloc-veille` |
+| `browser.headless` | `true` (sans fenêtre), `false` (fenêtre visible, utile pour observer) ou `"virtual"` (écran virtuel Xvfb, Linux) | `true` |
+| `browser.humanize` | Mouvements de souris humanisés (`true`, `false` ou durée max en secondes) | `true` |
+| `browser.proxy` | Proxy : `{ "server": "http://hote:port", "username": "...", "password": "..." }` (ou `socks5://...`) | `null` |
+| `browser.locale` / `browser.timezoneId` | Identité utilisée sans proxy | `fr-FR` / `Europe/Paris` |
+| `browser.geoip` | Forcer (`true`) ou désactiver (`false`) la géolocalisation par IP | activée si proxy |
 | `platforms` | Plateformes actives : `{ "leboncoin": true, "seloger": true, "bienici": true }` | toutes |
 | `zones` | Liste des zones (voir ci-dessous) | obligatoire |
 | `filters.typeBien` | Types de biens : `appartement`, `maison`, `parking`, `terrain`... (vide = tous) | `[]` |
@@ -86,7 +87,19 @@ Fichier `config.json` (modèle : `config.example.json`) :
 | `delays.minMs` / `delays.maxMs` | Pause aléatoire entre deux chargements de page (minimum imposé : 1000 ms) | `4000` / `9000` |
 | `outputDir` | Dossier de sortie | `output` |
 
-Si le serveur camofox a été protégé par `CAMOFOX_ACCESS_KEY`, définir la même variable d'environnement avant de lancer le script (ou `accessKey` dans `config.json`).
+Les anciennes clés `camofoxUrl`, `userId` et `accessKey` (version camofox-browser) sont refusées avec un message explicite : les retirer.
+
+Exemple avec proxy résidentiel :
+
+```json
+"browser": {
+  "headless": true,
+  "humanize": true,
+  "proxy": { "server": "http://fr.proxy.example:8000", "username": "utilisateur", "password": "secret" }
+}
+```
+
+Ne pas versionner `config.json` s'il contient des identifiants de proxy (il est déjà dans `.gitignore`).
 
 **Attention aux filtres** : `prixMax`, `surfaceMin` et `typeBien` réduisent le nombre d'annonces vues, donc le compte par agence. Pour mesurer le volume réel d'une agence, laisser ces filtres vides.
 
@@ -117,7 +130,7 @@ node src/index.js --config config.json --platform leboncoin  # une seule platefo
 node src/index.js --config config.json -p seloger -p bienici # plusieurs
 ```
 
-Le script affiche sa progression (page, nombre d'annonces, nouvelles annonces). Pour chaque zone, la pagination s'arrête dès qu'une page n'apporte **aucune annonce nouvelle**, quand le total annoncé par le site est atteint, ou à `maxPages`. Une pause aléatoire (`delays`) sépare chaque chargement de page. Une erreur sur une zone n'arrête pas la plateforme ; un blocage anti-robot arrête la plateforme concernée mais pas les autres.
+Le script lance un seul navigateur Camoufox pour toute l'exécution, avec un seul contexte (cookies partagés), et ouvre un nouvel onglet par plateforme. Il affiche sa progression (page, nombre d'annonces, nouvelles annonces). Pour chaque zone, la pagination s'arrête dès qu'une page n'apporte **aucune annonce nouvelle**, quand le total annoncé par le site est atteint, ou à `maxPages`. Une pause aléatoire (`delays`) sépare chaque chargement de page. Une erreur sur une zone n'arrête pas la plateforme ; un blocage anti-robot arrête la plateforme concernée mais pas les autres.
 
 Durée indicative : avec les délais par défaut (6,5 s en moyenne), 20 pages × 3 plateformes × 1 zone prennent environ 7 minutes.
 
@@ -140,14 +153,14 @@ Colonnes :
 | `zones` | Zones dans lesquelles les annonces ont été trouvées (séparées par ` \| `) |
 | `exemples_annonces` | Jusqu'à 3 URL d'annonces (séparées par ` \| `) |
 
-Les lignes sont triées par nombre d'annonces décroissant. En cas de blocage ou de repli sur le HTML, un instantané texte de la page est enregistré dans `output/debug/` pour diagnostic.
+Les lignes sont triées par nombre d'annonces décroissant. En cas de blocage ou de repli sur le HTML, le HTML de la page (avec son URL et son titre en commentaire) est enregistré dans `output/debug/` pour diagnostic.
 
 ## Fonctionnement
 
 ```
 src/
   index.js              CLI : boucle plateformes x zones x pages, délais, reprise d'erreurs
-  camofox.js            client REST camofox (onglets, navigation, attente, evaluate, snapshot)
+  browser.js            lancement de Camoufox (camoufox-js + playwright-core), onglets, navigation, attente, evaluate, instantané HTML
   platforms/
     leboncoin.js        __NEXT_DATA__ de la page de recherche (category=10, owner_type=pro)
     seloger.js          état JSON sérialisé dans la page, repli sur les liens /annonces/locations/
@@ -159,7 +172,7 @@ src/
 test/                   tests unitaires node:test avec petits fichiers JSON d'exemple
 ```
 
-Le principe est de **lire les données JSON que les sites embarquent** dans leurs pages plutôt que de dépendre de sélecteurs CSS, beaucoup plus fragiles. Le script exécuté dans la page (via `POST /tabs/:id/evaluate` de camofox) se contente de récupérer ces données brutes ; leur analyse est faite côté Node par des fonctions pures, testées unitairement. Un repli sur le HTML existe pour Leboncoin et SeLoger, mais il identifie rarement l'agence.
+Le principe est de **lire les données JSON que les sites embarquent** dans leurs pages plutôt que de dépendre de sélecteurs CSS, beaucoup plus fragiles. Le script exécuté dans la page (via `page.evaluate` de Playwright) se contente de récupérer ces données brutes ; leur analyse est faite côté Node par des fonctions pures, testées unitairement. Un repli sur le HTML existe pour Leboncoin et SeLoger, mais il identifie rarement l'agence.
 
 Regroupement des agences : par identifiant d'agence quand il est connu, sinon par nom normalisé (sans accents, casse ni ponctuation). Une annonce dont seul le nom d'agence est connu est rattachée à l'identifiant déjà vu pour ce même nom sur la même plateforme. Les annonces de particuliers et celles sans agence identifiable sont ignorées (comptées dans `stats`).
 
@@ -167,9 +180,9 @@ Regroupement des agences : par identifiant d'agence quand il est connu, sinon pa
 
 **Important** : ce code a été écrit sans accès aux trois sites (bloqués depuis l'environnement de développement). Les chemins JSON, paramètres d'URL et noms de champs reposent sur la structure connue de ces sites et sont signalés comme "à valider" dans le code. Avant la première vraie exécution :
 
-1. Lancer camofox, puis le script sur **une zone** et `"maxPages": 1`, une plateforme à la fois (`-p leboncoin`).
+1. Lancer le script sur **une zone** et `"maxPages": 1`, une plateforme à la fois (`-p leboncoin`), de préférence avec `"browser": { "headless": false }` pour voir la page.
 2. Vérifier dans la console que des annonces sont trouvées et que la source n'est pas le repli HTML ; ouvrir le JSON de sortie (passer temporairement `seuilAnnonces` à 0 pour tout voir) et contrôler quelques agences à la main sur le site.
-3. En cas d'écart, inspecter la page dans camofox : `curl -X POST localhost:9377/tabs/<tabId>/evaluate -H 'Content-Type: application/json' -d '{"userId":"greenloc-veille","expression":"document.getElementById(\"__NEXT_DATA__\")?.textContent.slice(0,2000)"}'`, puis ajuster la fonction de parsing concernée et ajouter le cas dans `test/fixtures/`.
+3. En cas d'écart, inspecter la page : avec `headless: false`, ouvrir les outils de développement de la fenêtre Camoufox (console : `document.getElementById("__NEXT_DATA__")?.textContent.slice(0, 2000)`), ou lire le HTML enregistré dans `output/debug/`. Ajuster ensuite la fonction de parsing concernée et ajouter le cas dans `test/fixtures/`.
 
 Points précis à confirmer :
 
@@ -185,7 +198,9 @@ Points précis à confirmer :
 - **Agences multi-agences et franchises** : un même réseau (Foncia, Century 21, Orpi...) ou une agence à plusieurs boutiques peut apparaître sous plusieurs identifiants, et chaque agence est alors comptée séparément. Inversement, deux agences homonymes sans identifiant peuvent être fusionnées. Vérifier à la main les cas ambigus.
 - **Annonces sans agence identifiable** : ignorées (nombre indiqué dans `stats.ignoreesSansAgence`).
 - **Mandataires** : les mandataires indépendants (IAD, SAFTI, Capifrance...) sont généralement des comptes "pro" et apparaissent comme des agences.
-- **Blocages anti-robots** : DataDome (Leboncoin, SeLoger) peut bloquer après un certain volume malgré camofox ; le script s'arrête alors proprement pour la plateforme concernée.
+- **Blocages anti-robots** : DataDome (Leboncoin, SeLoger) peut bloquer après un certain volume malgré Camoufox ; le script s'arrête alors proprement pour la plateforme concernée.
+- **Camoufox en développement** : voir [État du projet Camoufox](#état-du-projet-camoufox).
+- **Non testé avec le vrai navigateur dans l'environnement de développement** : le téléchargement de Camoufox (publications GitHub) y était bloqué. `src/browser.js` est couvert par des tests avec un faux navigateur ; le premier lancement réel reste à faire.
 
 ## Risques juridiques
 
@@ -202,11 +217,13 @@ Bonnes pratiques retenues dans l'outil : délais aléatoires de plusieurs second
 
 | Symptôme | Piste |
 |----------|-------|
-| `camofox injoignable sur http://localhost:9377` | `docker compose up -d`, puis `docker compose logs -f camofox` ; vérifier `curl localhost:9377/health`. |
+| `lancement de Camoufox impossible : Version information not found...` | Le navigateur n'est pas téléchargé : `npm run fetch-browser`. Si `CAMOUFOX_INSTALL_DIR` a servi au téléchargement, la définir aussi au lancement. |
+| `Failed to fetch releases from https://api.github.com/...` | Le téléchargement passe par l'API GitHub : vérifier l'accès réseau à `api.github.com` et `github.com`, ou définir `GITHUB_TOKEN` (limite de requêtes). |
+| `camoufox-js introuvable` | `npm install` dans `veille-agences/`. |
+| Échec au lancement avec `"virtual"` | Installer `Xvfb` ou repasser à `headless: true`. |
 | `accès bloqué (anti-bot / captcha)` | Attendre quelques heures, augmenter `delays`, réduire `maxPages`, puis en dernier recours configurer un proxy résidentiel. L'instantané de la page est dans `output/debug/`. |
 | `JSON embarqué introuvable, repli DOM` | La structure du site a changé : voir [Validation des parseurs](#validation-des-parseurs-sur-pages-réelles). |
 | 0 annonce sur SeLoger | Vérifier `seloger.searchUrl` : l'ouvrir dans un navigateur, elle doit afficher des résultats de **location**. |
 | `bienici : zone ... introuvable` | Renseigner `bienici.zoneIds` à la main (identifiants visibles dans les requêtes réseau `realEstateAds.json` du site). |
-| HTTP 401 / 403 de camofox | Le serveur exige `CAMOFOX_ACCESS_KEY` : exporter la même valeur avant de lancer le script. |
-| Onglet perdu (404 / 410) | Géré automatiquement (réouverture d'un onglet). Si fréquent, augmenter `TAB_INACTIVITY_MS` et `SESSION_TIMEOUT_MS` dans `docker-compose.yml`. |
-| Image Docker introuvable | Utiliser le bloc `build:` de `docker-compose.yml` ou `make up` dans un clone de camofox-browser. |
+| Onglet perdu (page plantée, navigateur fermé) | Géré automatiquement : un nouvel onglet est ouvert (et le navigateur relancé si besoin), puis l'opération est retentée une fois. |
+| Erreur de géolocalisation au lancement avec proxy | La recherche de l'IP de sortie a échoué : vérifier le proxy, ou passer `browser.geoip` à `false` (l'identité `fr-FR` / `Europe/Paris` est alors utilisée). |

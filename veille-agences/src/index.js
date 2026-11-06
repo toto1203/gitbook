@@ -9,7 +9,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { pathToFileURL } from 'node:url';
-import { CamofoxClient, CamofoxError } from './camofox.js';
+import { Browser, BrowserError } from './browser.js';
 import { loadConfig } from './config.js';
 import { aggregate } from './aggregate.js';
 import { writeOutputs } from './output.js';
@@ -26,33 +26,33 @@ Options :
   -p, --platform   limiter l'exécution à une plateforme (option répétable)
   -h, --help       afficher cette aide`;
 
-async function saveDebugSnapshot(camofox, tabId, outputDir, tag) {
+async function saveDebugSnapshot(tab, outputDir, tag) {
   try {
-    const snap = await camofox.snapshot(tabId);
+    const snap = await tab.snapshot();
     const dir = join(outputDir, 'debug');
     await mkdir(dir, { recursive: true });
-    const file = join(dir, `${tag.replace(/[^a-z0-9_-]+/gi, '_')}.txt`);
-    await writeFile(file, `URL : ${snap?.url}\n\n${snap?.snapshot || ''}`, 'utf8');
+    const file = join(dir, `${tag.replace(/[^a-z0-9_-]+/gi, '_')}.html`);
+    await writeFile(file, `<!-- URL : ${snap?.url} ; titre : ${snap?.title || ''} -->\n${snap?.html || ''}`, 'utf8');
     log(`  instantané de diagnostic enregistré : ${file}`);
   } catch (err) {
     log(`  (instantané de diagnostic impossible : ${err.message})`);
   }
 }
 
-async function scrapePlatform({ mod, camofox, cfg, erreurs }) {
-  const sessionKey = `veille-${mod.name}`;
-  let tabId = null;
+async function scrapePlatform({ mod, browser, cfg, erreurs }) {
+  let tab = null;
   const openTab = async () => {
-    tabId = (await camofox.createTab({ sessionKey })).tabId;
-    if (mod.prepare) await mod.prepare({ camofox, tabId });
+    if (tab) await tab.close();
+    tab = await browser.newTab();
+    if (mod.prepare) await mod.prepare({ tab });
   };
-  // Exécute fn ; si l'onglet a disparu (inactivité, redémarrage du navigateur), en rouvre un et réessaie une fois.
+  // Exécute fn ; si l'onglet a disparu (page plantée, navigateur fermé), en rouvre un et réessaie une fois.
   const withTab = async (fn) => {
     try {
       return await fn();
     } catch (err) {
-      if (!(err instanceof CamofoxError) || !err.tabGone) throw err;
-      log(`  onglet perdu (${err.status}), réouverture`);
+      if (!(err instanceof BrowserError) || !err.tabGone) throw err;
+      log(`  onglet perdu (${err.message}), réouverture`);
       await openTab();
       return fn();
     }
@@ -66,7 +66,7 @@ async function scrapePlatform({ mod, camofox, cfg, erreurs }) {
       try {
         let z = zone;
         if (mod.resolveZoneIds) {
-          const zoneIds = await withTab(() => mod.resolveZoneIds({ camofox, tabId, zone }));
+          const zoneIds = await withTab(() => mod.resolveZoneIds({ tab, zone }));
           if (!zoneIds.length) throw new Error(`zone "${zone.label}" introuvable (renseigner ${mod.name}.zoneIds)`);
           z = { ...zone, [mod.name]: { ...(zone[mod.name] || {}), zoneIds } };
         }
@@ -74,14 +74,14 @@ async function scrapePlatform({ mod, camofox, cfg, erreurs }) {
         for (let page = 1; page <= cfg.maxPages; page++) {
           if (!first) await randomDelay(cfg.delays);
           first = false;
-          const res = await withTab(() => mod.fetchPage({ camofox, tabId, zone: z, page, filters: cfg.filters }));
+          const res = await withTab(() => mod.fetchPage({ tab, zone: z, page, filters: cfg.filters }));
           if (res.blocked) {
-            await saveDebugSnapshot(camofox, tabId, cfg.outputDir, `${mod.name}-${zone.label}-p${page}-bloque`);
+            await saveDebugSnapshot(tab, cfg.outputDir, `${mod.name}-${zone.label}-p${page}-bloque`);
             throw new BlockedError(mod.label, 'Essayer plus tard, allonger les délais ou configurer un proxy résidentiel.');
           }
           if (page === 1 && res.source === 'dom') {
             log(`  ${mod.label} / ${zone.label} : JSON embarqué introuvable, repli DOM (agences probablement non identifiées)`);
-            await saveDebugSnapshot(camofox, tabId, cfg.outputDir, `${mod.name}-${zone.label}-p1-repli-dom`);
+            await saveDebugSnapshot(tab, cfg.outputDir, `${mod.name}-${zone.label}-p1-repli-dom`);
           }
           const fresh = res.listings.filter((l) => !seen.has(l.listingId));
           for (const l of fresh) {
@@ -101,7 +101,7 @@ async function scrapePlatform({ mod, camofox, cfg, erreurs }) {
       }
     }
   } finally {
-    if (tabId) await camofox.closeTab(tabId).catch(() => {});
+    if (tab) await tab.close();
   }
   return collected;
 }
@@ -129,18 +129,9 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (names.length === 0) throw new Error('aucune plateforme activée');
 
-  const camofox = new CamofoxClient({
-    baseUrl: cfg.camofoxUrl,
-    userId: cfg.userId,
-    accessKey: process.env.CAMOFOX_ACCESS_KEY || cfg.accessKey || null,
-    log,
-  });
-  try {
-    const h = await camofox.health();
-    log(`camofox joignable (${cfg.camofoxUrl}, moteur ${h?.engine ?? '?'})`);
-  } catch (err) {
-    throw new Error(`camofox injoignable sur ${cfg.camofoxUrl} : ${err.message}\nLancer d'abord : docker compose up -d`);
-  }
+  const browser = new Browser({ ...cfg.browser, log });
+  log(`lancement de Camoufox (headless : ${cfg.browser.headless}, proxy : ${cfg.browser.proxy ? 'oui' : 'non'})`);
+  await browser.start();
 
   const all = [];
   const erreurs = [];
@@ -149,7 +140,7 @@ export async function main(argv = process.argv.slice(2)) {
       const mod = PLATFORMS[n];
       log(`=== ${mod.label} : ${cfg.zones.length} zone(s), ${cfg.maxPages} page(s) max par zone`);
       try {
-        const listings = await scrapePlatform({ mod, camofox, cfg, erreurs });
+        const listings = await scrapePlatform({ mod, browser, cfg, erreurs });
         log(`=== ${mod.label} : ${listings.length} annonces collectées`);
         all.push(...listings);
       } catch (err) {
@@ -158,7 +149,7 @@ export async function main(argv = process.argv.slice(2)) {
       }
     }
   } finally {
-    await camofox.closeSession().catch(() => {});
+    await browser.close();
   }
 
   const { agences, stats } = aggregate(all, { seuil: cfg.seuilAnnonces });
